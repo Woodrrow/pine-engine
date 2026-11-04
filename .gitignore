@@ -1,0 +1,12 @@
+# Market data is large and re-downloadable - keep it out of git
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+reports/*
+!reports/.gitkeep
+.dukascopy-cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

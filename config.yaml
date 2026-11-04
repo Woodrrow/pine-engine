@@ -1,0 +1,36 @@
+# =====================================================================
+#  Gold intraday backtester - configuration
+#  Stage 1 only uses the `data` and `quality` sections. Strategy,
+#  execution and report settings get added in later stages.
+# =====================================================================
+
+data:
+  instrument: xauusd
+  start_date: "2019-01-01"
+  end_date: null              # null = today (UTC)
+
+  raw_dir: data/raw           # yearly CSV chunks land in data/raw/<bid|ask>/<year>/
+  processed_file: data/processed/xauusd_m1.parquet
+
+  # dukascopy-node reports volume in "millions" by default, which gives tiny
+  # numbers for gold (e.g. 0.0012). We ask for plain "units" so that the
+  # later "if volume is 0 or missing, use 1" rule is a sensible fallback
+  # rather than a weight thousands of times bigger than a normal bar.
+  volume_units: units
+
+  # Dukascopy reports separate bid-side and ask-side tick volume.
+  # Which one becomes the single `volume` column used for VWAP:
+  #   bid | ask | sum | mean
+  volume_source: bid
+
+  download_retries: 3         # per-file retries inside dukascopy-node
+  chunk_attempts: 2           # whole-chunk attempts before giving up on a year
+
+quality:
+  report_timezone: Europe/London
+  # Window we care most about (UK time). Missing minutes in here are reported per day.
+  session_start: "13:00"
+  session_end: "17:00"
+  # Outside the session, only gaps at least this long are listed individually.
+  large_gap_minutes: 30
+  report_dir: reports
