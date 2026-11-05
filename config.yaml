@@ -34,3 +34,30 @@ quality:
   # Outside the session, only gaps at least this long are listed individually.
   large_gap_minutes: 30
   report_dir: reports
+
+# ---------------------------------------------------------------------
+#  Decisions recorded now, used from Stage 3/4 onwards
+# ---------------------------------------------------------------------
+execution:
+  # realistic   - real bid/ask fills, 1-minute data decides stop vs target,
+  #               position size capped at max_leverage x equity.
+  # tradingview - copies TradingView's broker emulator, for Stage 5 validation:
+  #               fills on the bid (chart) price + commission, guesses the path
+  #               inside a 5-minute bar from its OHLC (no bar magnifier), no size
+  #               cap: an over-margined entry from flat is rejected, a flip that
+  #               reverses a position is filled then margin-called (4x shortfall).
+  mode: realistic
+  max_leverage: 20                  # 5% margin, FCA retail limit for gold
+  commission_per_oz_per_side: 0.0   # tradingview mode uses 0.15 like the Pine script
+  initial_capital: 10000
+  # TradingView sends close_all at the close of the 17:00 bar, so it fills at the
+  # 17:05 bar's open and stops/targets stay live 17:00-17:05.
+  session_close_fill: next_bar_open   # or: session_end (exit at the 17:00 open)
+
+calendar:
+  tag_us_holidays: true       # US market holidays + early closes, column in the trade list
+  skip_us_holidays: false     # switch on later to compare
+  tag_dst_mismatch: true      # weeks when US data comes out at 12:30 UK
+
+# Spreads above $5 are kept as real quotes; each trade records the widest
+# spread it saw so spike-driven results are easy to spot.
