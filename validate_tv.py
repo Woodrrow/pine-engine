@@ -46,6 +46,8 @@ def main() -> int:
     ap.add_argument("--tv", default=DEFAULT_TV, help="TradingView trade list CSV")
     ap.add_argument("--start", help="backtest start date shown in TradingView (default: from config window)")
     ap.add_argument("--end", help="backtest end date (default: from config window)")
+    ap.add_argument("--all-charts", action="store_true",
+                    help="also draw a chart for every day with a TradingView or engine trade")
     args = ap.parse_args()
     pd.set_option("display.width", 200)
     pd.set_option("display.max_columns", 30)
@@ -127,6 +129,14 @@ def main() -> int:
     res.signals[res.signals.time >= start].to_csv(rep / "tv_window_signals.csv", index=False)
     (rep / "tv_comparison.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\nWrote reports/tv_comparison.txt, tv_comparison.csv, tv_window_signals.csv")
+
+    if args.all_charts:
+        from src.charts import plot_day
+        days = sorted(set(pd.to_datetime(cmp["tv_entry"].fillna(cmp["eng_entry"])).dt.date))
+        for d in days:
+            path = rep / f"tv_day_{d}.png"
+            plot_day(bars, res.bars, res.signals, eng, d, path)
+        print(f"Charts: reports/tv_day_<date>.png for {len(days)} days")
     return 0
 
 
