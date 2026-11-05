@@ -58,9 +58,9 @@ strategy:
   use_pb: false                      # usePB  (off in your TradingView: "they were all negative")
   use_fade: true                     # useFade
   use_flip: true                     # useFlip
-  max_trades: 2                      # maxTrades  per day
-  pb_rr: 3.0                         # pbRR
-  flip_rr: 3.0                       # flipRR
+  max_trades: 3                      # maxTrades  per day (your TradingView; script default 2)
+  pb_rr: 2.0                         # pbRR       (your TradingView; script default 3)
+  flip_rr: 2.0                       # flipRR     (your TradingView; script default 3)
   use_fixed_tp: true                 # useFixedTP (false = PB/Flip trail only)
   fade_target: band                  # fadeTgt: band (opposite 1 SD band) | vwap
   fade_min_rr: 1.0                   # fadeMinRR
@@ -71,7 +71,7 @@ strategy:
   use_be: true                       # useBE
   be_r: 1.0                          # beR
   use_trail: true                    # useTrail
-  trail_start: 1.5                   # trailStart (R)
+  trail_start: 1.0                   # trailStart (R) (your TradingView; script default 1.5)
   trail_atr: 2.0                     # trailATR   (x ATR)
 
 research:
