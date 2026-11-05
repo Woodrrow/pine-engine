@@ -64,7 +64,8 @@ def find_npx() -> str:
 
 
 def build_command(npx: str, instrument: str, chunk: Chunk,
-                  volume_units: str = "units", retries: int = 3) -> list[str]:
+                  volume_units: str = "units", retries: int = 3,
+                  timeframe: str = "m1") -> list[str]:
     """The exact command line from the spec, plus a few robustness flags."""
     return [
         npx, "-y", "dukascopy-node",
@@ -74,7 +75,7 @@ def build_command(npx: str, instrument: str, chunk: Chunk,
         # today's date would leave out everything since midnight.
         "-to", "now" if chunk.date_to >= dt.datetime.now(dt.timezone.utc).date()
                else chunk.date_to.isoformat(),
-        "-t", "m1",
+        "-t", timeframe,
         "-p", chunk.side,
         "-f", "csv",
         "-v",                       # include volumes
@@ -90,10 +91,11 @@ def chunk_csvs(chunk: Chunk) -> list[Path]:
 
 
 def download_chunk(chunk: Chunk, instrument: str, volume_units: str,
-                   retries: int, attempts: int, npx: str | None = None) -> bool:
+                   retries: int, attempts: int, npx: str | None = None,
+                   timeframe: str = "m1") -> bool:
     """Download one side/year. Returns True on success."""
     npx = npx or find_npx()
-    cmd = build_command(npx, instrument, chunk, volume_units, retries)
+    cmd = build_command(npx, instrument, chunk, volume_units, retries, timeframe)
 
     for attempt in range(1, attempts + 1):
         # Start clean so a half-written file from a failed run can't sneak in.

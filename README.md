@@ -64,6 +64,19 @@ Runs the engine in TradingView mode (bid prices, $0.15/oz commission, sizes floo
 `reports/tv_comparison.txt`. Only dates in `research.validation_windows` are allowed.
 `python r_summary.py` gives a flat-1%-risk total of the last `run_backtest.py` trades.
 
+## Research checks (in-sample only)
+
+```bash
+python signal_quality.py      # do the strategy's signals predict direction?
+python orb_check.py           # opening-range breakout
+python momentum_check.py      # intraday momentum (13:30-16:00 move -> 16:00-17:00)
+python download_daily.py      # daily bars from 2004, then:
+python trend_check.py         # multi-day trend following
+```
+
+Each idea's rules and pass conditions are fixed before testing and recorded in
+`RESEARCH_LOG.md`.
+
 ## Layout
 
 ```

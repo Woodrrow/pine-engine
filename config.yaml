@@ -84,6 +84,23 @@ orb:
   exit_time: "17:00"            # exit at the open of the 17:00 bar if not stopped
   min_range_bars: 5             # need at least 5 of the 6 range bars
 
+# ---------------------------------------------------------------------
+#  Multi-day trend following (rules fixed 5 Nov 2026, see src/trend.py)
+# ---------------------------------------------------------------------
+daily:
+  start_date: "2004-01-01"      # as far back as Dukascopy has it; actual start is reported
+  raw_dir: data/raw_d1
+  processed_file: data/processed/xauusd_d1.parquet
+
+trend:
+  lookbacks: [50, 100, 200]     # long above the N-day average, short below; one third each
+  atr_len: 20                   # daily ATR used for sizing
+  risk_pct_per_atr: 1.0         # full position: a 1-ATR day = 1% of the starting balance
+  # Overnight financing on the position's value, per year. ROUGH typical CFD /
+  # spread-bet figures: check your broker's actual rates and put them here.
+  financing_long_pct: 6.0
+  financing_short_pct: 1.0
+
 research:
   # Everything from this date on is out-of-sample and LOCKED: run_backtest.py
   # cuts the data off before it until you set oos_locked: false (once!).

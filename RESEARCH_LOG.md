@@ -45,9 +45,26 @@ only to check the engine against TradingView (no tuning).
 - Result (run by the user on the real data): **all three pass conditions FAIL.**
 - **Verdict: fails. Stopped.**
 
+## 4. Multi-day trend following (rules fixed 5 Nov 2026, `src/trend.py`)
+
+- Why it might work: time-series momentum is a widely studied effect across
+  futures markets including gold (slow-moving institutional flows, reluctance
+  to sit through reversals).
+- Data: Dukascopy DAILY bid/ask bars from 2004 (or the earliest available) to
+  2023 in-sample; 2024+ locked.
+- Rules: three sub-systems (50/100/200-day simple averages, one third each),
+  long above / short below at the close, traded at the next open; each third
+  sized at its signal change so a 1-ATR(20) day = 1/3 % of the start; no stops.
+  Costs: half the open spread per ounce traded + overnight financing
+  (6%/yr long, 1%/yr short on the position's value; rough figures).
+- Pass conditions set in advance: (A) positive after all costs with t >= 2;
+  (B) both halves positive; (C) each lookback positive on its own;
+  (D) short positions not losing in total.
+- Result: _pending_ (`python download_daily.py` then `python trend_check.py`)
+
 ---
 
 ## Running count
 
-3 ideas tested on the in-sample data (2019-2023), 0 passed. All three were
+3 intraday ideas tested on the in-sample data (2019-2023), 0 passed. All three were
 intraday (5-minute to 1-hour horizons) in the 13:00-17:00 UK session.
