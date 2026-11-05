@@ -1,7 +1,7 @@
 # =====================================================================
 #  Gold intraday backtester - configuration
-#  Stage 1 only uses the `data` and `quality` sections. Strategy,
-#  execution and report settings get added in later stages.
+#  Stage 1 uses `data` + `quality`, Stage 2 uses `prepare`.
+#  Strategy and report settings get added in later stages.
 # =====================================================================
 
 data:
@@ -34,6 +34,11 @@ quality:
   # Outside the session, only gaps at least this long are listed individually.
   large_gap_minutes: 30
   report_dir: reports
+
+prepare:
+  timezone: Europe/London
+  bar_minutes: 5
+  m5_file: data/processed/xauusd_m5.parquet
 
 # ---------------------------------------------------------------------
 #  Decisions recorded now, used from Stage 3/4 onwards
