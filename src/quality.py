@@ -150,3 +150,22 @@ def spread_by_year_and_uk_hour(df: pd.DataFrame, tz: str = "Europe/London") -> p
     local = df.index.tz_convert(tz)
     t = pd.DataFrame({"spread": spread.values, "year": local.year, "uk_hour": local.hour})
     return t.pivot_table(index="uk_hour", columns="year", values="spread", aggfunc="median")
+
+
+def wide_spreads(df: pd.DataFrame, threshold: float = 5.0,
+                 tz: str = "Europe/London") -> pd.DataFrame:
+    """Every minute whose closing spread is above `threshold` ($/oz), widest first.
+
+    Used to check whether the extreme spreads fall inside the trading session
+    (they would hit fills and stops) or only around the daily break (harmless).
+    """
+    spread = df["ask_close"] - df["bid_close"]
+    wide = spread[spread > threshold]
+    local = wide.index.tz_convert(tz)
+    out = pd.DataFrame({
+        "time_utc": wide.index,
+        "time_uk": local.strftime("%Y-%m-%d %H:%M"),
+        "uk_hour": local.hour,
+        "spread": wide.values,
+    })
+    return out.sort_values("spread", ascending=False).reset_index(drop=True)

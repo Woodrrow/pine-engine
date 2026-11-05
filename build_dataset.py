@@ -9,6 +9,7 @@ Writes:
     reports/session_coverage.csv           NY-session minutes present per weekday
     reports/spread_by_uk_hour.csv          spread stats by UK hour (all years)
     reports/spread_by_year_uk_hour.csv     median spread by UK hour, one column per year
+    reports/wide_spreads.csv               every minute with a spread above $5
 """
 import argparse
 import io
@@ -18,8 +19,8 @@ import pandas as pd
 
 from src.config import load_config, resolve
 from src.merge import load_side, merge_bid_ask, save_parquet
-from src.quality import (find_gaps, sanity_checks, session_coverage,
-                         spread_by_uk_hour, spread_by_year_and_uk_hour)
+from src.quality import (_hhmm, find_gaps, sanity_checks, session_coverage,
+                         spread_by_uk_hour, spread_by_year_and_uk_hour, wide_spreads)
 
 
 def build(cfg: dict) -> str:
@@ -106,6 +107,19 @@ def build(cfg: dict) -> str:
     say(sp.to_string(float_format=lambda x: f"{x:.3f}"))
     say("\n--- Median spread by UK hour and year ---")
     say(spy.to_string(float_format=lambda x: f"{x:.3f}"))
+
+    # ---- 8. where do the extreme spreads happen? ------------------------------
+    wide = wide_spreads(df, 5.0, tz)
+    wide.to_csv(rep_dir / "wide_spreads.csv", index=False)
+    say(f"\n--- Spreads above $5: {len(wide):,} minutes, count by UK hour ---")
+    if len(wide):
+        say(wide.groupby("uk_hour").size().rename("minutes").to_string())
+        t = pd.to_datetime(wide.time_uk).dt.time
+        in_sess = wide[(t >= _hhmm(q["session_start"])) & (t < _hhmm(q["session_end"]))]
+        say(f"\nInside the {q['session_start']}-{q['session_end']} UK session: {len(in_sess):,} minutes")
+        if len(in_sess):
+            say(in_sess.head(20)[["time_uk", "spread"]].to_string(index=False,
+                float_format=lambda x: f"{x:.2f}"))
 
     (rep_dir / "data_quality.txt").write_text(buf.getvalue(), encoding="utf-8")
     return buf.getvalue()

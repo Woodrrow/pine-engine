@@ -231,3 +231,12 @@ def test_build_dataset_end_to_end(tmp_path):
     assert (tmp_path / "reports/data_quality.txt").exists()
     sp = pd.read_csv(tmp_path / "reports/spread_by_uk_hour.csv", index_col=0)
     assert sp["median"].round(3).eq(0.25).all()
+
+
+def test_wide_spreads_reports_uk_time():
+    from src.quality import wide_spreads
+    df = _bid_ask_frame(minutes("2024-07-08 12:00", "2024-07-08 12:05"), spread=0.3)
+    df.iloc[2, df.columns.get_loc("ask_close")] += 10      # 12:02 UTC = 13:02 UK (BST)
+    w = wide_spreads(df, 5.0)
+    assert len(w) == 1
+    assert w.loc[0, "time_uk"] == "2024-07-08 13:02" and w.loc[0, "uk_hour"] == 13
