@@ -74,6 +74,16 @@ strategy:
   trail_start: 1.0                   # trailStart (R) (your TradingView; script default 1.5)
   trail_atr: 2.0                     # trailATR   (x ATR)
 
+# ---------------------------------------------------------------------
+#  Opening-range breakout (ORB) - a separate strategy idea. Rules fixed
+#  BEFORE testing (5 Nov 2026); see src/orb.py. Not to be tuned on results.
+# ---------------------------------------------------------------------
+orb:
+  range: ["13:30", "14:00"]     # opening range = high/low of bars opening 13:30-13:55
+  last_signal: "16:30"          # signal bar must open before this (last = 16:25)
+  exit_time: "17:00"            # exit at the open of the 17:00 bar if not stopped
+  min_range_bars: 5             # need at least 5 of the 6 range bars
+
 research:
   # Everything from this date on is out-of-sample and LOCKED: run_backtest.py
   # cuts the data off before it until you set oos_locked: false (once!).
