@@ -70,7 +70,10 @@ def build_command(npx: str, instrument: str, chunk: Chunk,
         npx, "-y", "dukascopy-node",
         "-i", instrument,
         "-from", chunk.date_from.isoformat(),
-        "-to", chunk.date_to.isoformat(),
+        # The chunk that reaches today asks for "now": -to is exclusive, so
+        # today's date would leave out everything since midnight.
+        "-to", "now" if chunk.date_to >= dt.datetime.now(dt.timezone.utc).date()
+               else chunk.date_to.isoformat(),
         "-t", "m1",
         "-p", chunk.side,
         "-f", "csv",
@@ -120,8 +123,9 @@ def download_chunk(chunk: Chunk, instrument: str, volume_units: str,
 def needs_download(chunk: Chunk, today: dt.date, force: bool) -> bool:
     if force or not chunk.done_marker.exists() or not chunk_csvs(chunk):
         return True
-    # The chunk containing today is still growing, so always refresh it.
-    return chunk.date_to > today
+    # The chunk that reaches today is still growing, so always refresh it.
+    # (>= not >: when the end date is today, date_to == today.)
+    return chunk.date_to >= today
 
 
 def download_all(cfg: dict, years: list[int] | None = None, sides=SIDES,

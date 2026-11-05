@@ -208,6 +208,14 @@ def test_needs_download(tmp_path):
     assert needs_download(c, today, force=True)
     current = Chunk("bid", 2026, dt.date(2026, 1, 1), dt.date(2026, 11, 4), c.out_dir)
     assert needs_download(current, dt.date(2026, 11, 3), force=False)  # still growing
+    assert needs_download(current, dt.date(2026, 11, 4), force=False)  # ends today: refresh too
+
+
+def test_current_chunk_asks_for_now(tmp_path):
+    today = dt.datetime.now(dt.timezone.utc).date()
+    c = Chunk("bid", today.year, dt.date(today.year, 1, 1), today, tmp_path)
+    cmd = build_command("npx", "xauusd", c)
+    assert cmd[cmd.index("-to") + 1] == "now"
 
 
 # ---------------------------------------------------------------------------

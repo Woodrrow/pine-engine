@@ -26,3 +26,20 @@ def resolve(cfg: dict, relative_path: str) -> Path:
     """Turn a path from the config into an absolute path."""
     p = Path(relative_path)
     return p if p.is_absolute() else cfg["_root"] / p
+
+
+def apply_overrides(section: dict, overrides: list[str] | None) -> dict:
+    """Return a copy of a config section with KEY=VALUE overrides applied.
+
+    Values are read as YAML, so use_pb=false, trend_pct=75, fade_target=vwap work.
+    """
+    out = dict(section)
+    for item in overrides or []:
+        if "=" not in item:
+            raise ValueError(f"--set needs KEY=VALUE, got {item!r}")
+        k, v = item.split("=", 1)
+        k = k.strip()
+        if k not in out:
+            raise ValueError(f"Unknown strategy setting {k!r}. Known: {sorted(out)}")
+        out[k] = yaml.safe_load(v)
+    return out

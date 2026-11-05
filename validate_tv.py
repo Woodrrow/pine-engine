@@ -16,7 +16,7 @@ import sys
 import pandas as pd
 
 from src.broker import SimpleBroker
-from src.config import load_config, resolve
+from src.config import apply_overrides, load_config, resolve
 from src.prepare import load_bars
 from src.strategy import Params, run_strategy
 from src.tv_compare import explain_missing, match_trades, read_tv_trades
@@ -46,6 +46,8 @@ def main() -> int:
     ap.add_argument("--tv", default=DEFAULT_TV, help="TradingView trade list CSV")
     ap.add_argument("--start", help="backtest start date shown in TradingView (default: from config window)")
     ap.add_argument("--end", help="backtest end date (default: from config window)")
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                    help="override a strategy setting, e.g. --set use_pb=false (repeatable)")
     ap.add_argument("--all-charts", action="store_true",
                     help="also draw a chart for every day with a TradingView or engine trade")
     args = ap.parse_args()
@@ -69,7 +71,8 @@ def main() -> int:
     ex = cfg["execution"]
     tvs = ex["tradingview"]
     broker = SimpleBroker(ex["initial_capital"], tvs["commission_per_oz_per_side"], tvs["qty_step"])
-    res = run_strategy(bars, Params.from_config(cfg["strategy"]), broker,
+    strat = apply_overrides(cfg["strategy"], args.set)
+    res = run_strategy(bars, Params.from_config(strat), broker,
                        session_close_fill="next_bar_open", trade_from=start)
 
     eng = res.trades
@@ -81,6 +84,8 @@ def main() -> int:
     say = lambda s="": (print(s), lines.append(str(s)))  # noqa: E731
     say("=" * 90)
     say(f"Engine vs TradingView, {start:%d %b %Y} - {(end - pd.Timedelta(days=1)):%d %b %Y}")
+    if args.set:
+        say(f"Settings changed for this run: {', '.join(args.set)}")
     say("=" * 90)
     if len(beyond):
         say(f"!! Your data ends {data_end:%d %b %H:%M}; {len(beyond)} TradingView trade(s) after that "

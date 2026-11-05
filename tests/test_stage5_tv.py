@@ -82,3 +82,12 @@ def test_missing_extra_and_shifted(engine_trades):
     assert (cmp.status == "EXTRA").sum() == 1
     assert (cmp.status == "MISSING").sum() == 1
     assert (cmp.status == "shifted -2 bars").sum() == 1
+
+
+def test_overrides():
+    from src.config import apply_overrides
+    s = apply_overrides({"use_pb": True, "trend_pct": 80, "fade_target": "band"},
+                        ["use_pb=false", "trend_pct=75", "fade_target=vwap"])
+    assert s == {"use_pb": False, "trend_pct": 75, "fade_target": "vwap"}
+    with pytest.raises(ValueError):
+        apply_overrides({"use_pb": True}, ["use_pbb=false"])

@@ -18,7 +18,7 @@ import sys
 import pandas as pd
 
 from src.broker import SimpleBroker
-from src.config import load_config, resolve
+from src.config import apply_overrides, load_config, resolve
 from src.prepare import load_bars
 from src.strategy import Params, run_strategy
 
@@ -49,8 +49,8 @@ def load_inputs(cfg: dict, start=None, end=None, warmup_days: int = 10) -> pd.Da
     return bars
 
 
-def run(cfg: dict, bars: pd.DataFrame, only: str | None = None):
-    sp = dict(cfg["strategy"])
+def run(cfg: dict, bars: pd.DataFrame, only: str | None = None, overrides=None):
+    sp = apply_overrides(cfg["strategy"], overrides)
     if only:
         sp.update(use_pb=only == "PB", use_fade=only == "Fade", use_flip=only == "Flip")
     p = Params.from_config(sp)
@@ -108,13 +108,15 @@ def main() -> int:
     ap.add_argument("--start", help="first UK date to report (YYYY-MM-DD)")
     ap.add_argument("--end", help="last UK date (YYYY-MM-DD)")
     ap.add_argument("--only", choices=["PB", "Fade", "Flip"], help="trade one signal family alone")
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                    help="override a strategy setting, e.g. --set use_pb=false (repeatable)")
     ap.add_argument("--day", action="append", default=[], help="draw a chart of this UK date (repeatable)")
     args = ap.parse_args()
     pd.set_option("display.width", 160)
 
     cfg = load_config(args.config)
     bars = load_inputs(cfg, args.start, args.end)
-    res = run(cfg, bars, args.only)
+    res = run(cfg, bars, args.only, args.set)
 
     rep = resolve(cfg, cfg["quality"]["report_dir"])
     rep.mkdir(parents=True, exist_ok=True)
