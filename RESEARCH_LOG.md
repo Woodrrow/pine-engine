@@ -68,5 +68,5 @@ only to check the engine against TradingView (no tuning).
 ## Running count
 
 4 ideas tested, 0 passed: 3 intraday (in-sample 2019-2023) and 1 multi-day
-trend system (in-sample 2004-2023). All three were
-intraday (5-minute to 1-hour horizons) in the 13:00-17:00 UK session.
+trend system (in-sample 2004-2023). The intraday ideas used 5-minute to
+1-hour horizons in the 13:00-17:00 UK session.
