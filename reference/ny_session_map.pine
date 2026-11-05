@@ -1,0 +1,315 @@
+//@version=5
+// NY Session Map — Gold, strategy version · run on the 5-minute chart
+// Assumes 1 contract = 1 oz. Commission $0.15/oz per side ≈ $0.30 round-trip spread.
+// Margin 5% = 20:1 (FCA retail cap for gold). Adjust both in Properties.
+strategy("NY Session Map — Gold (Strategy)", overlay = true, max_boxes_count = 100,
+     initial_capital = 10000, pyramiding = 0,
+     margin_long = 5, margin_short = 5,
+     commission_type = strategy.commission.cash_per_contract,
+     commission_value = 0.15)
+
+// ───────────── Inputs: signals ─────────────
+tz        = "Europe/London"
+sessStr   = input.session("1300-1700", "NY session")
+orStr     = input.session("1330-1400", "Opening range")
+innerMult = input.float(1.0, "Inner band (SD)")
+outerMult = input.float(2.0, "Outer band (SD)")
+trendPct  = input.float(80, "Trend day: % of bars on one side of VWAP")
+minBars   = input.int(6, "Bars before classifying the day")
+touchTol  = input.float(0.25, "VWAP touch tolerance (SD)")
+cooldown  = input.int(3, "Min bars between signals")
+failBars  = input.int(6, "PB fail: bars to watch after a PB")
+flipDist  = input.float(0.5, "Flip: close beyond VWAP by x SD")
+
+// ───────────── Inputs: trading ─────────────
+usePB      = input.bool(true, "Trade pullbacks (PB)", group = "Trading")
+useFade    = input.bool(true, "Trade fades", group = "Trading")
+useFlip    = input.bool(true, "Trade flips", group = "Trading")
+entryStr   = input.session("1330-1630", "Entry window", group = "Trading")
+maxTrades  = input.int(2, "Max trades per day", group = "Trading")
+pbRR       = input.float(3.0, "PB target (R)", group = "Trading")
+flipRR     = input.float(3.0, "Flip target (R)", group = "Trading")
+useFixedTP = input.bool(true, "PB/Flip: use fixed target (off = trailing stop only)", group = "Trading")
+fadeTgt    = input.string("Opposite 1 SD band", "Fade target", options = ["VWAP", "Opposite 1 SD band"], group = "Trading")
+fadeMinRR  = input.float(1.0, "Fade: min reward to target (R)", group = "Trading")
+fadeLook   = input.int(5, "Fade stop lookback (bars)", group = "Trading")
+atrLen     = input.int(14, "ATR length", group = "Trading")
+stopBuf    = input.float(0.1, "Stop buffer (x ATR)", group = "Trading")
+riskPct    = input.float(1.0, "Risk per trade (%)", group = "Trading")
+
+// ───────────── Inputs: trailing stop ─────────────
+useBE      = input.bool(true, "Move stop to break-even", group = "Trailing stop")
+beR        = input.float(1.0, "Break-even after +x R", group = "Trailing stop")
+useTrail   = input.bool(true, "Use trailing stop", group = "Trailing stop")
+trailStart = input.float(1.5, "Start trailing after +x R", group = "Trailing stop")
+trailATR   = input.float(2.0, "Trail distance (x ATR)", group = "Trailing stop")
+
+inS(s) => not na(time(timeframe.period, s, tz))
+inSess  = inS(sessStr)
+inOR    = inS(orStr)
+inEntry = inS(entryStr)
+newSess = inSess and not inSess[1]
+
+atr = ta.atr(atrLen)
+hhF = ta.highest(high, fadeLook)
+llF = ta.lowest(low, fadeLook)
+
+// ───────────── Session VWAP + bands ─────────────
+v = nz(volume) > 0 ? volume : 1.0
+var float sPV  = 0.0
+var float sV   = 0.0
+var float sPV2 = 0.0
+if newSess
+    sPV  := 0.0
+    sV   := 0.0
+    sPV2 := 0.0
+if inSess
+    sPV  += hlc3 * v
+    sV   += v
+    sPV2 += hlc3 * hlc3 * v
+vw  = inSess and sV > 0 ? sPV / sV : na
+sd  = inSess and sV > 0 ? math.sqrt(math.max(sPV2 / sV - vw * vw, 0)) : na
+up1 = vw + innerMult * sd
+dn1 = vw - innerMult * sd
+up2 = vw + outerMult * sd
+dn2 = vw - outerMult * sd
+
+// ───────────── Day type (live, no look-ahead) ─────────────
+var int nBars  = 0
+var int nAbove = 0
+if newSess
+    nBars  := 0
+    nAbove := 0
+if inSess and not na(vw)
+    nBars  += 1
+    nAbove += close > vw ? 1 : 0
+pctAbove = nBars > 0 ? 100.0 * nAbove / nBars : na
+trendUp  = inSess and nBars >= minBars and pctAbove >= trendPct
+trendDn  = inSess and nBars >= minBars and pctAbove <= 100 - trendPct
+ranging  = inSess and nBars >= minBars and not trendUp and not trendDn
+
+// ───────────── Reversal state ─────────────
+var int lostDir    = 0
+var int lostBar    = -1000
+var int flippedDir = 0
+if newSess
+    lostDir    := 0
+    flippedDir := 0
+if flippedDir == 0 and lostDir == 0 and trendUp and close < vw - flipDist * sd
+    lostDir := 1
+    lostBar := bar_index
+if flippedDir == 0 and lostDir == 0 and trendDn and close > vw + flipDist * sd
+    lostDir := -1
+    lostBar := bar_index
+
+// ───────────── Signals ─────────────
+var int lastSig = -1000
+sigOK = inSess and bar_index - lastSig > cooldown
+
+pbLong    = sigOK and flippedDir == 0 and lostDir != 1  and trendUp and low <= vw + touchTol * sd and close > vw and close > open
+pbShort   = sigOK and flippedDir == 0 and lostDir != -1 and trendDn and high >= vw - touchTol * sd and close < vw and close < open
+fadeShort = sigOK and ranging and flippedDir == 0 and close[1] > up2[1] and close < up2
+fadeLong  = sigOK and ranging and flippedDir == 0 and close[1] < dn2[1] and close > dn2
+flipShort = sigOK and lostDir == 1  and bar_index > lostBar and high >= vw - touchTol * sd and close < vw and close < open
+flipLong  = sigOK and lostDir == -1 and bar_index > lostBar and low <= vw + touchTol * sd and close > vw and close > open
+
+if flipShort
+    flippedDir := 1
+    lostDir    := 0
+if flipLong
+    flippedDir := -1
+    lostDir    := 0
+if pbLong or pbShort or fadeShort or fadeLong or flipShort or flipLong
+    lastSig := bar_index
+
+// ───────────── PB fail tracking ─────────────
+var int   pbDir = 0
+var int   pbBar = -1000
+var float pbExt = na
+if newSess
+    pbDir := 0
+if pbLong
+    pbDir := 1
+    pbBar := bar_index
+    pbExt := low
+if pbShort
+    pbDir := -1
+    pbBar := bar_index
+    pbExt := high
+inWatch     = bar_index > pbBar and bar_index - pbBar <= failBars
+pbFailLong  = pbDir == 1  and inWatch and close < pbExt
+pbFailShort = pbDir == -1 and inWatch and close > pbExt
+if pbFailLong or pbFailShort or bar_index - pbBar > failBars
+    pbDir := 0
+
+// ───────────── Trading ─────────────
+var int    tradesToday = 0
+var float  stopPx = na
+var float  tgtPx  = na
+var float  riskR  = na
+var float  bestPx = na
+var string curId  = ""
+if newSess
+    tradesToday := 0
+
+qtyFor(risk) => strategy.equity * riskPct / 100 / risk
+fadeLimit(isLongFade) => fadeTgt == "VWAP" ? vw : (isLongFade ? up1 : dn1)
+
+canEnter = inEntry and tradesToday < maxTrades and not na(atr)
+flat     = strategy.position_size == 0
+didEnter = false
+
+// Flips first: they may reverse an open trade in the old direction
+if useFlip and flipShort and canEnter and strategy.position_size >= 0
+    s = high + stopBuf * atr
+    r = s - close
+    if r > 0
+        stopPx := s
+        riskR  := r
+        tgtPx  := useFixedTP ? close - flipRR * r : na
+        curId  := "Flip S"
+        strategy.entry(curId, strategy.short, qty = qtyFor(r))
+        strategy.exit(curId + " x", curId, stop = stopPx, limit = tgtPx)
+        tradesToday += 1
+        didEnter := true
+
+if useFlip and flipLong and canEnter and strategy.position_size <= 0 and not didEnter
+    s = low - stopBuf * atr
+    r = close - s
+    if r > 0
+        stopPx := s
+        riskR  := r
+        tgtPx  := useFixedTP ? close + flipRR * r : na
+        curId  := "Flip L"
+        strategy.entry(curId, strategy.long, qty = qtyFor(r))
+        strategy.exit(curId + " x", curId, stop = stopPx, limit = tgtPx)
+        tradesToday += 1
+        didEnter := true
+
+// Pullbacks
+if usePB and pbLong and canEnter and flat and not didEnter
+    s = low - stopBuf * atr
+    r = close - s
+    if r > 0
+        stopPx := s
+        riskR  := r
+        tgtPx  := useFixedTP ? close + pbRR * r : na
+        curId  := "PB L"
+        strategy.entry(curId, strategy.long, qty = qtyFor(r))
+        strategy.exit(curId + " x", curId, stop = stopPx, limit = tgtPx)
+        tradesToday += 1
+        didEnter := true
+
+if usePB and pbShort and canEnter and flat and not didEnter
+    s = high + stopBuf * atr
+    r = s - close
+    if r > 0
+        stopPx := s
+        riskR  := r
+        tgtPx  := useFixedTP ? close - pbRR * r : na
+        curId  := "PB S"
+        strategy.entry(curId, strategy.short, qty = qtyFor(r))
+        strategy.exit(curId + " x", curId, stop = stopPx, limit = tgtPx)
+        tradesToday += 1
+        didEnter := true
+
+// Fades
+if useFade and fadeShort and canEnter and flat and not didEnter
+    s = hhF + stopBuf * atr
+    r = s - close
+    t = fadeLimit(false)
+    if r > 0 and (close - t) / r >= fadeMinRR
+        stopPx := s
+        riskR  := r
+        curId  := "Fade S"
+        strategy.entry(curId, strategy.short, qty = qtyFor(r))
+        strategy.exit(curId + " x", curId, stop = stopPx, limit = t)
+        tradesToday += 1
+        didEnter := true
+
+if useFade and fadeLong and canEnter and flat and not didEnter
+    s = llF - stopBuf * atr
+    r = close - s
+    t = fadeLimit(true)
+    if r > 0 and (t - close) / r >= fadeMinRR
+        stopPx := s
+        riskR  := r
+        curId  := "Fade L"
+        strategy.entry(curId, strategy.long, qty = qtyFor(r))
+        strategy.exit(curId + " x", curId, stop = stopPx, limit = t)
+        tradesToday += 1
+        didEnter := true
+
+// ───────────── Break-even + trailing stop ─────────────
+posDir  = math.sign(strategy.position_size)
+newFill = posDir != 0 and posDir != math.sign(strategy.position_size[1])
+if newFill
+    bestPx := posDir > 0 ? high : low
+
+if posDir != 0 and not didEnter and not na(riskR)
+    entryP = strategy.position_avg_price
+    if posDir > 0
+        bestPx := math.max(bestPx, high)
+        gain = bestPx - entryP
+        if useBE and gain >= beR * riskR
+            stopPx := math.max(stopPx, entryP)
+        if useTrail and gain >= trailStart * riskR
+            stopPx := math.max(stopPx, bestPx - trailATR * atr)
+    else
+        bestPx := math.min(bestPx, low)
+        gain = entryP - bestPx
+        if useBE and gain >= beR * riskR
+            stopPx := math.min(stopPx, entryP)
+        if useTrail and gain >= trailStart * riskR
+            stopPx := math.min(stopPx, bestPx + trailATR * atr)
+
+    // Re-issue exits with the updated stop (fades keep trailing their band/VWAP target)
+    if curId != "" and not na(vw)
+        lim = str.startswith(curId, "Fade") ? fadeLimit(curId == "Fade L") : tgtPx
+        strategy.exit(curId + " x", curId, stop = stopPx, limit = lim)
+
+// Close everything at 17:00
+if not inSess and inSess[1]
+    strategy.close_all(comment = "17:00 close")
+
+// ───────────── Opening range box ─────────────
+var float orH   = na
+var float orL   = na
+var box   orBox = na
+if newSess
+    orBox := na
+if inOR and not inOR[1]
+    orH   := high
+    orL   := low
+    orBox := box.new(bar_index, orH, bar_index, orL, border_color = color.new(color.orange, 0), bgcolor = color.new(color.orange, 88))
+else if inOR and not na(orBox)
+    orH := math.max(orH, high)
+    orL := math.min(orL, low)
+    box.set_top(orBox, orH)
+    box.set_bottom(orBox, orL)
+    box.set_right(orBox, bar_index)
+else if inSess and not na(orBox)
+    box.set_right(orBox, bar_index)
+
+// ───────────── Visuals ─────────────
+plot(vw,  "VWAP",        color.blue, 2, plot.style_linebr)
+plot(up1, "Upper 1 SD",  color.new(color.red, 50),   1, plot.style_linebr)
+plot(dn1, "Lower 1 SD",  color.new(color.green, 50), 1, plot.style_linebr)
+plot(up2, "Upper 2 SD",  color.red,   1, plot.style_linebr)
+plot(dn2, "Lower 2 SD",  color.green, 1, plot.style_linebr)
+
+inPos = strategy.position_size != 0
+plot(inPos ? stopPx : na, "Current stop", color.orange, 2, plot.style_linebr)
+plot(inPos and not str.startswith(curId, "Fade") ? tgtPx : na, "Target", color.lime, 2, plot.style_linebr)
+
+dayCol = flippedDir != 0 ? color.new(color.purple, 90) : trendUp ? color.new(color.green, 92) : trendDn ? color.new(color.red, 92) : ranging ? color.new(color.gray, 93) : na
+bgcolor(dayCol, title = "Day type")
+
+plotshape(pbLong,      "Pullback long",  shape.labelup,   location.belowbar, color.green,  text = "PB",   textcolor = color.white, size = size.tiny)
+plotshape(pbShort,     "Pullback short", shape.labeldown, location.abovebar, color.red,    text = "PB",   textcolor = color.white, size = size.tiny)
+plotshape(fadeLong,    "Fade long",      shape.labelup,   location.belowbar, color.teal,   text = "Fade", textcolor = color.white, size = size.tiny)
+plotshape(fadeShort,   "Fade short",     shape.labeldown, location.abovebar, color.maroon, text = "Fade", textcolor = color.white, size = size.tiny)
+plotshape(flipLong,    "Flip long",      shape.labelup,   location.belowbar, color.purple, text = "Flip", textcolor = color.white, size = size.small)
+plotshape(flipShort,   "Flip short",     shape.labeldown, location.abovebar, color.purple, text = "Flip", textcolor = color.white, size = size.small)
+plotshape(pbFailLong,  "PB fail (long)",  shape.xcross, location.belowbar, color.orange, size = size.tiny)
+plotshape(pbFailShort, "PB fail (short)", shape.xcross, location.abovebar, color.orange, size = size.tiny)
