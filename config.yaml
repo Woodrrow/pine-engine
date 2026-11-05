@@ -1,7 +1,7 @@
 # =====================================================================
 #  Gold intraday backtester - configuration
-#  Stage 1 uses `data` + `quality`, Stage 2 uses `prepare`.
-#  Strategy and report settings get added in later stages.
+#  Stage 1 uses `data` + `quality`, Stage 2 `prepare`, Stage 3 `strategy`
+#  and `research`. Report settings get added in later stages.
 # =====================================================================
 
 data:
@@ -39,6 +39,46 @@ prepare:
   timezone: Europe/London
   bar_minutes: 5
   m5_file: data/processed/xauusd_m5.parquet
+
+# ---------------------------------------------------------------------
+#  Strategy - names and defaults copied from the Pine script inputs
+#  (reference/ny_session_map.pine). All times are UK time, bar OPEN times.
+# ---------------------------------------------------------------------
+strategy:
+  session: ["13:00", "17:00"]        # sessStr   "1300-1700"
+  opening_range: ["13:30", "14:00"]  # orStr     (plotting only)
+  entry_window: ["13:30", "16:30"]   # entryStr  "1330-1630"
+  inner_mult: 1.0                    # innerMult  inner band (SD)
+  outer_mult: 2.0                    # outerMult  outer band (SD)
+  trend_pct: 80                      # trendPct
+  min_bars: 6                        # minBars
+  touch_tol: 0.25                    # touchTol   VWAP touch tolerance (SD)
+  cooldown: 3                        # cooldown   signal needs > 3 bars since last
+  flip_dist: 0.5                     # flipDist   "lost" = close beyond VWAP by x SD
+  use_pb: true                       # usePB
+  use_fade: true                     # useFade
+  use_flip: true                     # useFlip
+  max_trades: 2                      # maxTrades  per day
+  pb_rr: 3.0                         # pbRR
+  flip_rr: 3.0                       # flipRR
+  use_fixed_tp: true                 # useFixedTP (false = PB/Flip trail only)
+  fade_target: band                  # fadeTgt: band (opposite 1 SD band) | vwap
+  fade_min_rr: 1.0                   # fadeMinRR
+  fade_lookback: 5                   # fadeLook   bars, includes the signal bar
+  atr_len: 14                        # atrLen     Wilder ATR on all 5-min bars
+  stop_buf: 0.1                      # stopBuf    x ATR
+  risk_pct: 1.0                      # riskPct
+  use_be: true                       # useBE
+  be_r: 1.0                          # beR
+  use_trail: true                    # useTrail
+  trail_start: 1.5                   # trailStart (R)
+  trail_atr: 2.0                     # trailATR   (x ATR)
+
+research:
+  # Everything from this date on is out-of-sample and LOCKED: run_backtest.py
+  # cuts the data off before it until you set oos_locked: false (once!).
+  oos_start: "2024-01-01"
+  oos_locked: true
 
 # ---------------------------------------------------------------------
 #  Decisions recorded now, used from Stage 3/4 onwards
