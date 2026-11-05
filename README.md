@@ -8,7 +8,7 @@ A Python backtester for an NY-session gold strategy, built in stages.
 | 2. Preparation (UK time, 5-minute bars) | ✅ built |
 | 3. Strategy logic | ✅ built |
 | 4. Execution and costs | – |
-| 5. Validation against TradingView | – |
+| 5. Validation against TradingView | 🟡 comparison tool built (early, before Stage 4) |
 | 6. Reports | – |
 | 7. Robustness | – |
 
@@ -52,6 +52,18 @@ to it), `stage3_trades.csv`, `stage3_session_bars.csv` (VWAP, bands, day type pe
 `day_<date>.png` charts. Stage 3 fills are TradingView-style on bid prices with no costs.
 Don't judge results until Stage 4.
 
+## Checking against TradingView
+
+```bash
+python validate_tv.py                                   # validation/tv_trades_2026-10-11_2026-11-05.csv
+python validate_tv.py --tv my_tradingview_export.csv    # a TradingView "List of trades" CSV export
+```
+
+Runs the engine in TradingView mode (bid prices, $0.15/oz commission, sizes floored to
+0.1 oz, $10,000 start) and lists matched / shifted / missing / extra trades in
+`reports/tv_comparison.txt`. Only dates in `research.validation_windows` are allowed.
+`python r_summary.py` gives a flat-1%-risk total of the last `run_backtest.py` trades.
+
 ## Layout
 
 ```
@@ -70,6 +82,9 @@ src/strategy.py      the strategy, ported block by block from the Pine script
 src/broker.py        order/position simulator (Stage 3: bid-only TradingView-style fills)
 src/charts.py        one-day chart for comparing with TradingView
 run_backtest.py      runs the strategy (applies the out-of-sample lock)
+validate_tv.py       compares engine trades with a TradingView trade list
+src/tv_compare.py    reads TradingView trade lists, matches trades
+validation/          TradingView trade lists
 reference/           the TradingView Pine script the engine must match
 tests/               pytest
 data/raw, data/processed, reports/   (not in git)

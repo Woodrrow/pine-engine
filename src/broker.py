@@ -20,6 +20,7 @@ Order of events in each bar (same as TradingView with default settings):
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -79,8 +80,14 @@ def first_exit(direction: int, stop, limit, o: float, h: float, l: float, c: flo
 
 
 class SimpleBroker:
-    def __init__(self, initial_capital: float = 10_000.0):
+    def __init__(self, initial_capital: float = 10_000.0, commission_per_unit: float = 0.0,
+                 qty_step: float | None = None):
+        """commission_per_unit: $ per oz per side (TradingView: cash_per_contract).
+        qty_step: round every order size DOWN to this lot step (TradingView floors
+        to the symbol's minimum contract, 0.1 oz on your chart). None = no rounding."""
         self.initial_capital = initial_capital
+        self.commission = commission_per_unit
+        self.qty_step = qty_step
         self.realized = 0.0
         self.position: Position | None = None
         self.pending_entry: tuple | None = None      # (entry_id, direction, qty, meta)
@@ -110,6 +117,13 @@ class SimpleBroker:
     def entry(self, entry_id: str, direction: int, qty: float, meta: dict | None = None):
         """strategy.entry: a market order filled at the next bar's open.
         An entry against an open position reverses it."""
+        if self.qty_step:
+            # floor to the lot grid; the tiny epsilon stops 20.7 becoming 20.6
+            # because of floating-point dust (20.699999...)
+            qty = math.floor(qty / self.qty_step + 1e-9) * self.qty_step
+            qty = round(qty, 10)
+        if qty <= 0:
+            return
         self.pending_entry = (entry_id, direction, qty, meta or {})
 
     def exit(self, entry_id: str, stop=None, limit=None, stop_kind: str = "stop"):
@@ -135,6 +149,7 @@ class SimpleBroker:
                     return            # pyramiding = 0: ignore an entry in the same direction
                 self._close(i, t, o, f"reversed by {entry_id}")
             self.position = Position(entry_id, direction, qty, o, t, i, meta)
+            self.realized -= self.commission * qty          # entry commission
 
     def on_bar(self, i: int, t: pd.Timestamp, o: float, h: float, l: float, c: float):
         if self.position is None:
@@ -157,8 +172,10 @@ class SimpleBroker:
     # ---- internals ------------------------------------------------------------------
     def _close(self, i: int, t: pd.Timestamp, price: float, reason: str):
         p = self.position
-        pnl = p.direction * (price - p.entry_price) * p.qty
-        self.realized += pnl
+        commission = self.commission * p.qty * 2            # both sides, booked on the trade
+        pnl = p.direction * (price - p.entry_price) * p.qty - commission
+        # entry commission was already taken out of `realized` when the trade opened
+        self.realized += pnl + self.commission * p.qty
         risk_r = p.meta.get("risk_r")
         self.trades.append({
             "signal": p.entry_id,
@@ -171,6 +188,7 @@ class SimpleBroker:
             "exit_price": price,
             "exit_reason": reason,
             "bars_held": i - p.entry_bar,
+            "commission": commission,
             "pnl": pnl,
             "r_multiple": pnl / (p.qty * risk_r) if risk_r else float("nan"),
             "equity_after": self.initial_capital + self.realized,

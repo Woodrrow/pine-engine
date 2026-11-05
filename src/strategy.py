@@ -92,7 +92,10 @@ class Result:
 
 def run_strategy(bars: pd.DataFrame, p: Params, broker: SimpleBroker | None = None,
                  skip_us_holidays: bool = False,
-                 session_close_fill: str = "next_bar_open") -> Result:
+                 session_close_fill: str = "next_bar_open",
+                 trade_from: pd.Timestamp | None = None) -> Result:
+    """trade_from: no orders before this time (like TradingView's backtest date
+    range). Indicators and signals still run on the earlier bars."""
     broker = broker or SimpleBroker()
     n = len(bars)
     times = bars.index
@@ -231,8 +234,9 @@ def run_strategy(bars: pd.DataFrame, p: Params, broker: SimpleBroker | None = No
         if new_sess:
             trades_today = 0
         holiday_block = skip_us_holidays and holiday[i] != ""
+        before_start = trade_from is not None and t < trade_from
         can_enter = (in_entry and trades_today < p.max_trades and not math.isnan(atr[i])
-                     and not holiday_block)
+                     and not holiday_block and not before_start)
         pos = broker.size                       # strategy.position_size (after this bar's fills)
         flat = pos == 0
         did_enter = False
@@ -246,6 +250,8 @@ def run_strategy(bars: pd.DataFrame, p: Params, broker: SimpleBroker | None = No
                 return "max trades reached"
             if holiday_block:
                 return "US holiday skipped"
+            if before_start:
+                return "before backtest start"
             return "ATR not ready"
 
         day_type = 1 if trend_up else -1 if trend_dn else 2 if ranging else 0

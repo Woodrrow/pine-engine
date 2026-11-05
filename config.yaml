@@ -79,6 +79,11 @@ research:
   # cuts the data off before it until you set oos_locked: false (once!).
   oos_start: "2024-01-01"
   oos_locked: true
+  # The ONLY out-of-sample dates that may be used while locked: your TradingView
+  # export, for the Stage 5 logic check (never for tuning). 10 days before the
+  # start are also loaded, only so ATR is warmed up, and not reported.
+  validation_windows:
+    - ["2026-10-11", "2026-11-05"]
 
 # ---------------------------------------------------------------------
 #  Decisions recorded now, used from Stage 3/4 onwards
@@ -95,6 +100,10 @@ execution:
   max_leverage: 20                  # 5% margin, FCA retail limit for gold
   commission_per_oz_per_side: 0.0   # tradingview mode uses 0.15 like the Pine script
   initial_capital: 10000
+  # Copies of the TradingView settings, used when comparing with TradingView
+  tradingview:
+    commission_per_oz_per_side: 0.15   # commission_value in the Pine script
+    qty_step: 0.1                      # sizes are floored to 0.1 oz on your chart
   # TradingView sends close_all at the close of the 17:00 bar, so it fills at the
   # 17:05 bar's open and stops/targets stay live 17:00-17:05.
   session_close_fill: next_bar_open   # or: session_end (exit at the 17:00 open)
