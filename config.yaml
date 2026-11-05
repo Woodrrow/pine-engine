@@ -55,7 +55,7 @@ strategy:
   touch_tol: 0.25                    # touchTol   VWAP touch tolerance (SD)
   cooldown: 3                        # cooldown   signal needs > 3 bars since last
   flip_dist: 0.5                     # flipDist   "lost" = close beyond VWAP by x SD
-  use_pb: true                       # usePB
+  use_pb: false                      # usePB  (off in your TradingView: "they were all negative")
   use_fade: true                     # useFade
   use_flip: true                     # useFlip
   max_trades: 2                      # maxTrades  per day
