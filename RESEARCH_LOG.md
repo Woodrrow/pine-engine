@@ -42,4 +42,12 @@ only to check the engine against TradingView (no tuning).
   target. 1R = 5-minute ATR at 15:55 x sqrt(12). Cost = one spread per trade.
 - Pass conditions set in advance: positive after spread with t >= 3; at least
   4 of 5 years positive; longs and shorts both positive.
-- Result: _pending_ (`python momentum_check.py`)
+- Result (run by the user on the real data): **all three pass conditions FAIL.**
+- **Verdict: fails. Stopped.**
+
+---
+
+## Running count
+
+3 ideas tested on the in-sample data (2019-2023), 0 passed. All three were
+intraday (5-minute to 1-hour horizons) in the 13:00-17:00 UK session.
