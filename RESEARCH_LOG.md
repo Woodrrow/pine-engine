@@ -31,3 +31,15 @@ only to check the engine against TradingView (no tuning).
   (spread 0.06R per trade); 2 of 5 years positive; longs +0.03R, shorts -0.10R.
 - Forward-return check: average move by 17:00 +0.001 ATR (t 0.006), 48.7% right.
 - **Verdict: fails all three conditions. Stopped.**
+
+## 3. Intraday momentum (rules fixed 5 Nov 2026, `src/intraday_momentum.py`)
+
+- Idea from published research on "intraday momentum" (the day's early move
+  predicting its late move), plus the faint hint that fades after 16:00 went
+  the wrong way.
+- Rules: at the 16:00 bar's open, trade in the direction of the move from the
+  13:30 open to the 15:55 bar's close; exit at the 17:00 bar's open. No stop or
+  target. 1R = 5-minute ATR at 15:55 x sqrt(12). Cost = one spread per trade.
+- Pass conditions set in advance: positive after spread with t >= 3; at least
+  4 of 5 years positive; longs and shorts both positive.
+- Result: _pending_ (`python momentum_check.py`)
