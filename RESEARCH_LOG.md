@@ -60,11 +60,13 @@ only to check the engine against TradingView (no tuning).
 - Pass conditions set in advance: (A) positive after all costs with t >= 2;
   (B) both halves positive; (C) each lookback positive on its own;
   (D) short positions not losing in total.
-- Result: _pending_ (`python download_daily.py` then `python trend_check.py`)
+- Result (run by the user on the real data): **all four pass conditions FAIL.**
+- **Verdict: fails.** (Detailed numbers to be added: before vs after financing.)
 
 ---
 
 ## Running count
 
-3 intraday ideas tested on the in-sample data (2019-2023), 0 passed. All three were
+4 ideas tested, 0 passed: 3 intraday (in-sample 2019-2023) and 1 multi-day
+trend system (in-sample 2004-2023). All three were
 intraday (5-minute to 1-hour horizons) in the 13:00-17:00 UK session.
