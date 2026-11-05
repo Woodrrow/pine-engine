@@ -61,7 +61,15 @@ only to check the engine against TradingView (no tuning).
   (B) both halves positive; (C) each lookback positive on its own;
   (D) short positions not losing in total.
 - Result (run by the user on the real data): **all four pass conditions FAIL.**
-- **Verdict: fails.** (Detailed numbers to be added: before vs after financing.)
+- Numbers (2004-10 to 2023-12, 19.2 years, 759 position changes):
+  before costs +67% (+3.5%/yr, Sharpe 0.28, t 1.25); after spread +61%;
+  after spread + financing **-2%** (Sharpe -0.01). Costs: spread 6.6%,
+  financing 62.6%. Each lookback about 0 after costs. Longs +36%, shorts -38%.
+  First half +22%, second half -24%. Buy and hold over the same dates: gold
+  +398%, Sharpe 0.55 before financing, 0.22 after.
+- **Verdict: fails.** Even before costs the trend timing (Sharpe 0.28) did
+  worse than simply holding gold (0.55); the profit came from the long side
+  riding gold's rise, and CFD-style overnight financing removed it.
 
 ---
 
