@@ -30,14 +30,14 @@ python build_dataset.py            # merge -> data/processed/xauusd_m1.parquet +
 python -m pytest -q                # tests
 ```
 
+If a year fails, re-running `download_data.py` downloads only the missing years.
+`--years 2021 --side ask` retries one chunk, and `--force` re-downloads everything.
+
 ## Stage 2: preparation
 
 ```bash
 python prepare_data.py             # -> data/processed/xauusd_m5.parquet + reports/prepare_summary.txt
 ```
-
-If a year fails, re-running `download_data.py` downloads only the missing years.
-`--years 2021 --side ask` retries one chunk, and `--force` re-downloads everything.
 
 ## Layout
 
